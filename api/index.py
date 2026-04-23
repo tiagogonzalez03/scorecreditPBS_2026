@@ -130,4 +130,5 @@ def api():
     return jsonify({"status": "ok"})
 
 
-index = app
+def handler(request):
+    return app(request)
