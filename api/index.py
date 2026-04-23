@@ -6,9 +6,6 @@ app = Flask(__name__)
 
 dados_cache = None
 
-# =========================
-# CARREGAR CSV (com cache)
-# =========================
 def carregar_dados():
     global dados_cache
 
@@ -60,9 +57,6 @@ def carregar_dados():
     return dados_cache
 
 
-# =========================
-# ROTA ÚNICA (API)
-# =========================
 @app.route('/api')
 def api():
     tipo = request.args.get('tipo', '')
@@ -70,13 +64,13 @@ def api():
 
     dados = carregar_dados()
 
-    # 🔥 RANKING
+    # ranking
     if tipo == "top-risk":
         filtrado = [d for d in dados if d["Alavancagem"] is not None]
         ordenado = sorted(filtrado, key=lambda x: x["Alavancagem"], reverse=True)
         return jsonify(ordenado[:10])
 
-    # 🔎 AUTOCOMPLETE / BUSCA
+    # busca
     if empresa_query:
         resultados = [
             item for item in dados
@@ -87,5 +81,4 @@ def api():
     return jsonify({"status": "ok"})
 
 
-# necessário para Vercel
 index = app
