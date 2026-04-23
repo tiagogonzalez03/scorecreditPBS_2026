@@ -11,7 +11,7 @@ dados_cache = None
 modelo = None
 
 # =========================
-# CARREGAR E PREPARAR DADOS
+# CARREGAR DADOS
 # =========================
 def carregar_dados():
     global dados_cache
@@ -44,12 +44,21 @@ def carregar_dados():
 
                 alavancagem = divida_2024 / ebitda_2024 if ebitda_2024 != 0 else None
 
-                # crescimento
-                crescimento_divida = (divida_2024 - divida_2023) / divida_2023 if divida_2023 != 0 else 0
-                crescimento_ebitda = (ebitda_2024 - ebitda_2023) / ebitda_2023 if ebitda_2023 != 0 else 0
+                crescimento_divida = (
+                    (divida_2024 - divida_2023) / divida_2023
+                    if divida_2023 != 0 else 0
+                )
 
-                # proxy de default
-                default = 1 if (alavancagem and alavancagem > 5 and crescimento_divida > 0) else 0
+                crescimento_ebitda = (
+                    (ebitda_2024 - ebitda_2023) / ebitda_2023
+                    if ebitda_2023 != 0 else 0
+                )
+
+                # proxy de default (ajustado para gerar mais variabilidade)
+                default = 1 if (
+                    alavancagem is not None and
+                    (alavancagem > 4.5 or crescimento_divida > 0.3)
+                ) else 0
 
                 dados.append({
                     "Empresa": empresa,
@@ -91,6 +100,11 @@ def treinar_modelo():
             ])
             y.append(d["Default"])
 
+    # 🔥 PROTEÇÃO CRÍTICA
+    if len(X) < 10 or len(set(y)) < 2:
+        modelo = None
+        return None
+
     modelo = LogisticRegression()
     modelo.fit(X, y)
 
@@ -107,13 +121,13 @@ def api():
 
     dados = carregar_dados()
 
-    # ranking
+    # 🔥 RANKING
     if tipo == "top-risk":
         filtrado = [d for d in dados if d["Alavancagem"] is not None]
         ordenado = sorted(filtrado, key=lambda x: x["Alavancagem"], reverse=True)
         return jsonify(ordenado[:10])
 
-    # busca + previsão
+    # 🔎 BUSCA
     if empresa_query:
         resultados = [
             item for item in dados
@@ -127,14 +141,23 @@ def api():
 
         modelo = treinar_modelo()
 
-        if item["Alavancagem"] is not None:
+        # 🔥 PREVISÃO SEGURA
+        if modelo is not None and item["Alavancagem"] is not None:
             prob = modelo.predict_proba([[
                 item["Alavancagem"],
                 item["Crescimento_Divida"],
                 item["Crescimento_EBITDA"]
             ]])[0][1]
         else:
-            prob = 1.0
+            # fallback heurístico
+            if item["Alavancagem"] is None:
+                prob = 1.0
+            elif item["Alavancagem"] < 2:
+                prob = 0.05
+            elif item["Alavancagem"] < 4.5:
+                prob = 0.15
+            else:
+                prob = 0.35
 
         item["Prob_Default"] = round(float(prob), 3)
 
@@ -143,4 +166,5 @@ def api():
     return jsonify({"status": "ok"})
 
 
+# necessário para Vercel
 index = app
