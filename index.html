@@ -102,32 +102,55 @@ function formatarNumero(valor) {
 }
 
 // =========================
+// SCORE + RECOMENDAÇÃO
+// =========================
+function calcularScore(valor) {
+  if (valor === null) return "D";
+
+  if (valor < 1.5) return "AAA";
+  if (valor < 2.5) return "AA";
+  if (valor < 3.5) return "A";
+  if (valor < 4.5) return "BBB";
+  if (valor < 6) return "BB";
+  if (valor < 8) return "B";
+  return "C";
+}
+
+function recomendacao(score) {
+  if (["AAA","AA","A"].includes(score))
+    return "🟢 Comprar / Longo prazo";
+
+  if (["BBB","BB"].includes(score))
+    return "🟡 Atenção / Avaliar melhor";
+
+  return "🔴 Evitar / Alto risco";
+}
+
+// =========================
 // EXPLICAÇÕES
 // =========================
 function explicacaoAlavancagem(valor) {
   if (valor === null) return "Empresa com prejuízo ou EBITDA negativo.";
 
-  if (valor < 2) return "Baixo nível de dívida. Estrutura financeira saudável.";
-  if (valor < 4.5) return "Dívida moderada. Exige acompanhamento.";
-  return "Alto nível de endividamento. Risco elevado.";
+  if (valor < 2) return "Baixo nível de dívida. Estrutura saudável.";
+  if (valor < 4.5) return "Dívida moderada.";
+  return "Alto nível de endividamento.";
 }
 
 function explicacaoRating(rating) {
   if (rating.includes("🟢"))
-    return "Empresa sólida financeiramente, menor risco.";
+    return "Empresa sólida.";
   if (rating.includes("🟡"))
-    return "Empresa estável, mas com atenção necessária.";
-  return "Empresa com alto risco financeiro.";
+    return "Empresa estável com atenção.";
+  return "Empresa de alto risco.";
 }
 
 function interpretacaoInvestidor(valor) {
   if (valor === null) return "Evitar análise baseada em dívida.";
 
-  if (valor < 2)
-    return "Perfil conservador: adequado para longo prazo.";
-  if (valor < 4.5)
-    return "Perfil moderado: analisar outros fatores.";
-  return "Perfil agressivo: investimento de alto risco.";
+  if (valor < 2) return "Perfil conservador.";
+  if (valor < 4.5) return "Perfil moderado.";
+  return "Perfil agressivo.";
 }
 
 // =========================
@@ -193,6 +216,9 @@ async function buscar() {
     corRating = "#eab308";
   }
 
+  const score = calcularScore(item.Alavancagem);
+  const rec = recomendacao(score);
+
   div.innerHTML = `
     <div class="card" style="background:${corBg}">
       <h3>${item.Empresa}</h3>
@@ -206,6 +232,10 @@ async function buscar() {
 
       <p><strong>💡 Interpretação:</strong><br>
       ${interpretacaoInvestidor(item.Alavancagem)}</p>
+
+      <p style="font-size:18px;"><strong>⭐ Score: ${score}</strong></p>
+
+      <p>${rec}</p>
 
       <p style="color:${corRating}; font-weight:bold;">
         ${item.Rating}
@@ -229,9 +259,7 @@ async function topRisk() {
   let html = `<div class="card"><h3>🔥 Top 10 Mais Arriscadas</h3>`;
 
   data.forEach((item, i) => {
-    html += `
-      <p>${i + 1}. ${item.Empresa} - ${item.Alavancagem}</p>
-    `;
+    html += `<p>${i + 1}. ${item.Empresa} - ${item.Alavancagem}</p>`;
   });
 
   html += `</div>`;
