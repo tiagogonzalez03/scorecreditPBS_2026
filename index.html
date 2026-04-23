@@ -5,18 +5,38 @@
   <title>Risco de Crédito</title>
   <style>
     body {
-      font-family: Arial;
-      background: #0f172a;
+      margin: 0;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg, #0f172a, #020617);
       color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .container {
+      width: 400px;
       text-align: center;
-      padding: 50px;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+      font-size: 26px;
+    }
+
+    .search-box {
+      display: flex;
+      gap: 10px;
     }
 
     input {
-      padding: 10px;
-      width: 300px;
-      border-radius: 8px;
+      flex: 1;
+      padding: 12px;
+      border-radius: 10px;
       border: none;
+      background: #1e293b;
+      color: white;
     }
 
     input:focus {
@@ -24,32 +44,63 @@
     }
 
     button {
-      padding: 10px 20px;
+      padding: 12px 18px;
       border: none;
-      border-radius: 8px;
+      border-radius: 10px;
       background: #22c55e;
       color: white;
       cursor: pointer;
+      font-weight: bold;
     }
 
     .card {
-      margin-top: 30px;
+      margin-top: 25px;
       padding: 20px;
+      border-radius: 16px;
+      text-align: left;
       background: #1e293b;
-      border-radius: 10px;
-      display: inline-block;
-      min-width: 300px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+      transition: 0.3s;
     }
+
+    .empresa {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+
+    .linha {
+      margin: 6px 0;
+      font-size: 14px;
+    }
+
+    .rating {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 10px;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .loading {
+      margin-top: 20px;
+      opacity: 0.7;
+    }
+
   </style>
 </head>
 <body>
 
-<h1>📊 Risco de Crédito</h1>
+<div class="container">
+  <h1>📊 Credit Risk</h1>
 
-<input id="empresa" placeholder="Digite o nome da empresa">
-<button onclick="buscar()">Buscar</button>
+  <div class="search-box">
+    <input id="empresa" placeholder="Digite empresa (ex: Amazon)">
+    <button onclick="buscar()">Buscar</button>
+  </div>
 
-<div id="resultado"></div>
+  <div id="resultado"></div>
+</div>
 
 <script>
 async function buscar() {
@@ -57,11 +108,11 @@ async function buscar() {
   const div = document.getElementById("resultado");
 
   if (!empresa) {
-    div.innerHTML = "⚠️ Digite uma empresa";
+    div.innerHTML = "<p>⚠️ Digite uma empresa</p>";
     return;
   }
 
-  div.innerHTML = "🔄 Buscando...";
+  div.innerHTML = '<div class="loading">🔄 Buscando...</div>';
 
   try {
     const res = await fetch(`/api?empresa=${empresa}`);
@@ -72,30 +123,37 @@ async function buscar() {
       return;
     }
 
-    // 🎯 Define cor do rating
-    const cor = data.Rating.includes("🔴") ? "#ef4444" :
-                data.Rating.includes("🟡") ? "#eab308" :
-                "#22c55e";
+    // 🎯 cores por risco
+    let corBg = "#1e293b";
+    let corRating = "#22c55e";
+
+    if (data.Rating.includes("🔴")) {
+      corBg = "#7f1d1d";
+      corRating = "#ef4444";
+    } else if (data.Rating.includes("🟡")) {
+      corBg = "#78350f";
+      corRating = "#eab308";
+    }
 
     div.innerHTML = `
-      <div class="card">
-        <h2>${data.Empresa}</h2>
-        <p><strong>Dívida:</strong> ${data.Divida_2024}</p>
-        <p><strong>EBITDA:</strong> ${data.EBITDA_2024}</p>
-        <p><strong>Alavancagem:</strong> ${data.Alavancagem}</p>
-        <p><strong>Rating:</strong> 
-          <span style="color:${cor}; font-weight:bold;">
-            ${data.Rating}
-          </span>
-        </p>
+      <div class="card" style="background:${corBg}">
+        <div class="empresa">${data.Empresa}</div>
+
+        <div class="linha">💰 Dívida: ${data.Divida_2024}</div>
+        <div class="linha">📈 EBITDA: ${data.EBITDA_2024}</div>
+        <div class="linha">⚖️ Alavancagem: ${data.Alavancagem}</div>
+
+        <div class="rating" style="background:${corRating}">
+          ${data.Rating}
+        </div>
       </div>
     `;
   } catch (err) {
-    div.innerHTML = "❌ Erro ao conectar com a API";
+    div.innerHTML = "<p>❌ Erro ao conectar com a API</p>";
   }
 }
 
-// 🔥 Permite buscar pressionando Enter
+// Enter para buscar
 document.getElementById("empresa").addEventListener("keypress", function(e) {
   if (e.key === "Enter") {
     buscar();
