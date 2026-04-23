@@ -1,14 +1,10 @@
 from flask import Flask, request, jsonify
 import csv
 import os
-import numpy as np
-
-from sklearn.linear_model import LogisticRegression
 
 app = Flask(__name__)
 
 dados_cache = None
-modelo = None
 
 # =========================
 # CARREGAR DADOS
@@ -54,20 +50,13 @@ def carregar_dados():
                     if ebitda_2023 != 0 else 0
                 )
 
-                # proxy de default (ajustado para gerar mais variabilidade)
-                default = 1 if (
-                    alavancagem is not None and
-                    (alavancagem > 4.5 or crescimento_divida > 0.3)
-                ) else 0
-
                 dados.append({
                     "Empresa": empresa,
                     "Divida_2024": divida_2024,
                     "EBITDA_2024": ebitda_2024,
                     "Alavancagem": round(alavancagem, 2) if alavancagem else None,
                     "Crescimento_Divida": crescimento_divida,
-                    "Crescimento_EBITDA": crescimento_ebitda,
-                    "Default": default
+                    "Crescimento_EBITDA": crescimento_ebitda
                 })
 
             except:
@@ -78,37 +67,31 @@ def carregar_dados():
 
 
 # =========================
-# TREINAR MODELO
+# PROBABILIDADE (IA HEURÍSTICA)
 # =========================
-def treinar_modelo():
-    global modelo
+def calcular_probabilidade(d):
+    if d["Alavancagem"] is None:
+        return 1.0
 
-    if modelo is not None:
-        return modelo
+    score = 0
 
-    dados = carregar_dados()
+    # alavancagem pesa mais
+    if d["Alavancagem"] < 2:
+        score += 0.05
+    elif d["Alavancagem"] < 4.5:
+        score += 0.15
+    else:
+        score += 0.35
 
-    X = []
-    y = []
+    # crescimento da dívida
+    if d["Crescimento_Divida"] > 0.3:
+        score += 0.2
 
-    for d in dados:
-        if d["Alavancagem"] is not None:
-            X.append([
-                d["Alavancagem"],
-                d["Crescimento_Divida"],
-                d["Crescimento_EBITDA"]
-            ])
-            y.append(d["Default"])
+    # queda de EBITDA
+    if d["Crescimento_EBITDA"] < 0:
+        score += 0.2
 
-    # 🔥 PROTEÇÃO CRÍTICA
-    if len(X) < 10 or len(set(y)) < 2:
-        modelo = None
-        return None
-
-    modelo = LogisticRegression()
-    modelo.fit(X, y)
-
-    return modelo
+    return min(score, 0.95)
 
 
 # =========================
@@ -121,13 +104,13 @@ def api():
 
     dados = carregar_dados()
 
-    # 🔥 RANKING
+    # ranking
     if tipo == "top-risk":
         filtrado = [d for d in dados if d["Alavancagem"] is not None]
         ordenado = sorted(filtrado, key=lambda x: x["Alavancagem"], reverse=True)
         return jsonify(ordenado[:10])
 
-    # 🔎 BUSCA
+    # busca
     if empresa_query:
         resultados = [
             item for item in dados
@@ -139,32 +122,12 @@ def api():
 
         item = resultados[0]
 
-        modelo = treinar_modelo()
-
-        # 🔥 PREVISÃO SEGURA
-        if modelo is not None and item["Alavancagem"] is not None:
-            prob = modelo.predict_proba([[
-                item["Alavancagem"],
-                item["Crescimento_Divida"],
-                item["Crescimento_EBITDA"]
-            ]])[0][1]
-        else:
-            # fallback heurístico
-            if item["Alavancagem"] is None:
-                prob = 1.0
-            elif item["Alavancagem"] < 2:
-                prob = 0.05
-            elif item["Alavancagem"] < 4.5:
-                prob = 0.15
-            else:
-                prob = 0.35
-
-        item["Prob_Default"] = round(float(prob), 3)
+        prob = calcular_probabilidade(item)
+        item["Prob_Default"] = round(prob, 3)
 
         return jsonify([item])
 
     return jsonify({"status": "ok"})
 
 
-# necessário para Vercel
 index = app
