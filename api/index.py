@@ -1,150 +1,23 @@
-from flask import Flask, request, jsonify
-import csv
-import os
-import unicodedata
+from flask import Flask, jsonify
 
 app = Flask(__name__)
 
-dados_cache = None
-
 # =========================
-# NORMALIZAR TEXTO
-# =========================
-def limpar_texto(texto):
-    return unicodedata.normalize('NFKD', texto)\
-        .encode('ascii', 'ignore')\
-        .decode('utf-8')\
-        .lower().strip()
-
-# =========================
-# CARREGAR DADOS
-# =========================
-def carregar_dados():
-    global dados_cache
-
-    if dados_cache is not None:
-        return dados_cache
-
-    # caminho simples (funciona no Vercel)
-    file_path = 'data/SPGlobal_Export_4-14-2026_FinalVersion.csv'
-
-    print("CSV PATH:", file_path)
-    print("EXISTS:", os.path.exists(file_path))
-
-    dados = []
-
-    if not os.path.exists(file_path):
-        print("❌ CSV não encontrado")
-        return []
-
-    with open(file_path, newline='', encoding='latin-1') as csvfile:
-        reader = csv.reader(csvfile)
-
-        for row in reader:
-            try:
-                if not row or len(row) < 10:
-                    continue
-
-                # ignora header
-                if not row[3].replace(',', '').replace('.', '').isdigit():
-                    continue
-
-                empresa = row[0].strip()
-
-                divida_2024 = float(row[3].replace(',', '') or 0)
-                divida_2023 = float(row[2].replace(',', '') or 0)
-
-                ebitda_2024 = float(row[9].replace(',', '') or 0)
-                ebitda_2023 = float(row[8].replace(',', '') or 0)
-
-                alavancagem = divida_2024 / ebitda_2024 if ebitda_2024 != 0 else None
-
-                crescimento_divida = (
-                    (divida_2024 - divida_2023) / divida_2023
-                    if divida_2023 != 0 else 0
-                )
-
-                crescimento_ebitda = (
-                    (ebitda_2024 - ebitda_2023) / ebitda_2023
-                    if ebitda_2023 != 0 else 0
-                )
-
-                dados.append({
-                    "Empresa": empresa,
-                    "Divida_2024": divida_2024,
-                    "EBITDA_2024": ebitda_2024,
-                    "Alavancagem": round(alavancagem, 2) if alavancagem else None,
-                    "Crescimento_Divida": crescimento_divida,
-                    "Crescimento_EBITDA": crescimento_ebitda
-                })
-
-            except Exception as e:
-                continue
-
-    print("TOTAL DE EMPRESAS:", len(dados))
-
-    dados_cache = dados
-    return dados_cache
-
-
-# =========================
-# PROBABILIDADE
-# =========================
-def calcular_probabilidade(d):
-    if d["Alavancagem"] is None:
-        return 1.0
-
-    score = 0
-
-    if d["Alavancagem"] < 2:
-        score += 0.05
-    elif d["Alavancagem"] < 4.5:
-        score += 0.15
-    else:
-        score += 0.35
-
-    if d["Crescimento_Divida"] > 0.3:
-        score += 0.2
-
-    if d["Crescimento_EBITDA"] < 0:
-        score += 0.2
-
-    return min(score, 0.95)
-
-
-# =========================
-# API
+# DEBUG - LISTAR ARQUIVOS
 # =========================
 @app.route('/api')
 def api():
-    tipo = request.args.get('tipo', '')
-    empresa_query = request.args.get('empresa', '')
+    import os
 
-    dados = carregar_dados()
+    files = []
 
-    # ranking
-    if tipo == "top-risk":
-        filtrado = [d for d in dados if d["Alavancagem"] is not None]
-        ordenado = sorted(filtrado, key=lambda x: x["Alavancagem"], reverse=True)
-        return jsonify(ordenado[:10])
+    for root, dirs, filenames in os.walk('.'):
+        for f in filenames:
+            files.append(os.path.join(root, f))
 
-    # busca
-    if empresa_query:
-        query = limpar_texto(empresa_query)
-
-        resultados = []
-
-        for item in dados:
-            nome = limpar_texto(item["Empresa"])
-
-            if query in nome:
-                prob = calcular_probabilidade(item)
-                item["Prob_Default"] = round(prob, 3)
-                resultados.append(item)
-
-        return jsonify(resultados[:10])
-
-    return jsonify({"status": "ok"})
+    return jsonify({
+        "files": files
+    })
 
 
 # =========================
