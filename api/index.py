@@ -61,13 +61,22 @@ def carregar_dados():
 
 
 # =========================
-# BUSCA / AUTOCOMPLETE
+# ROTA ÚNICA (API)
 # =========================
 @app.route('/api')
 def api():
+    tipo = request.args.get('tipo', '')
     empresa_query = request.args.get('empresa', '').lower()
+
     dados = carregar_dados()
 
+    # 🔥 RANKING
+    if tipo == "top-risk":
+        filtrado = [d for d in dados if d["Alavancagem"] is not None]
+        ordenado = sorted(filtrado, key=lambda x: x["Alavancagem"], reverse=True)
+        return jsonify(ordenado[:10])
+
+    # 🔎 AUTOCOMPLETE / BUSCA
     if empresa_query:
         resultados = [
             item for item in dados
@@ -76,19 +85,6 @@ def api():
         return jsonify(resultados[:10])
 
     return jsonify({"status": "ok"})
-
-
-# =========================
-# RANKING DE RISCO
-# =========================
-@app.route('/api/top-risk')
-def top_risk():
-    dados = carregar_dados()
-
-    filtrado = [d for d in dados if d["Alavancagem"] is not None]
-    ordenado = sorted(filtrado, key=lambda x: x["Alavancagem"], reverse=True)
-
-    return jsonify(ordenado[:10])
 
 
 # necessário para Vercel
