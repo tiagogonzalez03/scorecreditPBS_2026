@@ -35,16 +35,14 @@ def carregar_dados():
     with open(file_path, newline='', encoding='latin-1') as csvfile:
         reader = csv.reader(csvfile)
 
-        # 🔥 ENCONTRA HEADER AUTOMATICAMENTE
-        for row in reader:
-            if row and "Company" in row[0]:
-                break
-
-        # 🔥 LEITURA DOS DADOS
         for row in reader:
             try:
-                # proteção
+                # ignora linhas inválidas
                 if not row or len(row) < 10:
+                    continue
+
+                # ignora header (quando não é número)
+                if not row[3].replace(',', '').replace('.', '').isdigit():
                     continue
 
                 empresa = row[0].strip()
