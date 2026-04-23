@@ -33,6 +33,10 @@ input {
   color: white;
 }
 
+input:focus {
+  outline: 2px solid #22c55e;
+}
+
 button {
   margin-top: 10px;
   width: 100%;
@@ -42,6 +46,7 @@ button {
   background: #22c55e;
   color: white;
   cursor: pointer;
+  font-weight: bold;
 }
 
 .suggestions {
@@ -52,7 +57,8 @@ button {
   margin-top: 5px;
   max-height: 200px;
   overflow-y: auto;
-  z-index: 10;
+  z-index: 999;
+  border: 1px solid #334155;
 }
 
 .suggestion-item {
@@ -68,6 +74,7 @@ button {
   margin-top: 20px;
   padding: 20px;
   border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.4);
 }
 </style>
 </head>
@@ -91,73 +98,104 @@ button {
 
 <script>
 
+let timeout = null;
+
+// 🔎 AUTOCOMPLETE
 async function autocomplete() {
   const query = document.getElementById("empresa").value;
   const box = document.getElementById("suggestions");
+
+  clearTimeout(timeout);
 
   if (query.length < 2) {
     box.innerHTML = "";
     return;
   }
 
-  const res = await fetch(`/api?empresa=${query}`);
-  const data = await res.json();
+  timeout = setTimeout(async () => {
+    try {
+      const res = await fetch(`/api?empresa=${query}`);
+      const data = await res.json();
 
-  box.innerHTML = "";
-
-  data.forEach(item => {
-    const div = document.createElement("div");
-    div.className = "suggestion-item";
-    div.innerText = item.Empresa;
-
-    div.onclick = () => {
-      document.getElementById("empresa").value = item.Empresa;
       box.innerHTML = "";
-    };
 
-    box.appendChild(div);
-  });
+      if (!Array.isArray(data)) return;
+
+      data.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "suggestion-item";
+        div.innerText = item.Empresa;
+
+        div.onclick = () => {
+          document.getElementById("empresa").value = item.Empresa;
+          box.innerHTML = "";
+        };
+
+        box.appendChild(div);
+      });
+
+    } catch (err) {
+      console.log("Erro autocomplete:", err);
+    }
+  }, 300);
 }
 
+// 🔍 BUSCA PRINCIPAL
 async function buscar() {
   const empresa = document.getElementById("empresa").value;
   const div = document.getElementById("resultado");
 
-  div.innerHTML = "🔄 Buscando...";
-
-  const res = await fetch(`/api?empresa=${empresa}`);
-  const data = await res.json();
-
-  const item = data[0]; // pega o primeiro
-
-  if (!item) {
-    div.innerHTML = "Empresa não encontrada";
+  if (!empresa) {
+    div.innerHTML = "⚠️ Digite uma empresa";
     return;
   }
 
-  let corBg = "#1e293b";
-  let corRating = "#22c55e";
+  div.innerHTML = "🔄 Buscando...";
 
-  if (item.Rating.includes("🔴")) {
-    corBg = "#7f1d1d";
-    corRating = "#ef4444";
-  } else if (item.Rating.includes("🟡")) {
-    corBg = "#78350f";
-    corRating = "#eab308";
+  try {
+    const res = await fetch(`/api?empresa=${empresa}`);
+    const data = await res.json();
+
+    const item = data[0];
+
+    if (!item) {
+      div.innerHTML = "Empresa não encontrada";
+      return;
+    }
+
+    let corBg = "#1e293b";
+    let corRating = "#22c55e";
+
+    if (item.Rating.includes("🔴")) {
+      corBg = "#7f1d1d";
+      corRating = "#ef4444";
+    } else if (item.Rating.includes("🟡")) {
+      corBg = "#78350f";
+      corRating = "#eab308";
+    }
+
+    div.innerHTML = `
+      <div class="card" style="background:${corBg}">
+        <h3>${item.Empresa}</h3>
+        <p>💰 Dívida: ${item.Divida_2024}</p>
+        <p>📈 EBITDA: ${item.EBITDA_2024}</p>
+        <p>⚖️ Alavancagem: ${item.Alavancagem}</p>
+        <p style="color:${corRating}; font-weight:bold;">
+          ${item.Rating}
+        </p>
+      </div>
+    `;
+  } catch (err) {
+    div.innerHTML = "❌ Erro ao conectar com a API";
   }
-
-  div.innerHTML = `
-    <div class="card" style="background:${corBg}">
-      <h3>${item.Empresa}</h3>
-      <p>Dívida: ${item.Divida_2024}</p>
-      <p>EBITDA: ${item.EBITDA_2024}</p>
-      <p>Alavancagem: ${item.Alavancagem}</p>
-      <p style="color:${corRating}; font-weight:bold;">
-        ${item.Rating}
-      </p>
-    </div>
-  `;
 }
+
+// ⌨️ ENTER PARA BUSCAR
+document.getElementById("empresa").addEventListener("keypress", function(e) {
+  if (e.key === "Enter") {
+    buscar();
+  }
+});
 
 </script>
 
