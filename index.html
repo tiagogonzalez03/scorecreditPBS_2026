@@ -2,13 +2,51 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Teste API</title>
+  <title>Risco de Crédito</title>
+  <style>
+    body {
+      font-family: Arial;
+      background: #0f172a;
+      color: white;
+      text-align: center;
+      padding: 50px;
+    }
+
+    input {
+      padding: 10px;
+      width: 300px;
+      border-radius: 8px;
+      border: none;
+    }
+
+    input:focus {
+      outline: 2px solid #22c55e;
+    }
+
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      background: #22c55e;
+      color: white;
+      cursor: pointer;
+    }
+
+    .card {
+      margin-top: 30px;
+      padding: 20px;
+      background: #1e293b;
+      border-radius: 10px;
+      display: inline-block;
+      min-width: 300px;
+    }
+  </style>
 </head>
 <body>
 
-<h1>Teste API Vercel</h1>
+<h1>📊 Risco de Crédito</h1>
 
-<input id="empresa" placeholder="Digite empresa">
+<input id="empresa" placeholder="Digite o nome da empresa">
 <button onclick="buscar()">Buscar</button>
 
 <div id="resultado"></div>
@@ -16,13 +54,53 @@
 <script>
 async function buscar() {
   const empresa = document.getElementById("empresa").value;
+  const div = document.getElementById("resultado");
 
-  const res = await fetch(`/api?empresa=${empresa}`);
-  const data = await res.json();
+  if (!empresa) {
+    div.innerHTML = "⚠️ Digite uma empresa";
+    return;
+  }
 
-  document.getElementById("resultado").innerHTML =
-    `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+  div.innerHTML = "🔄 Buscando...";
+
+  try {
+    const res = await fetch(`/api?empresa=${empresa}`);
+    const data = await res.json();
+
+    if (data.erro) {
+      div.innerHTML = `<p>${data.erro}</p>`;
+      return;
+    }
+
+    // 🎯 Define cor do rating
+    const cor = data.Rating.includes("🔴") ? "#ef4444" :
+                data.Rating.includes("🟡") ? "#eab308" :
+                "#22c55e";
+
+    div.innerHTML = `
+      <div class="card">
+        <h2>${data.Empresa}</h2>
+        <p><strong>Dívida:</strong> ${data.Divida_2024}</p>
+        <p><strong>EBITDA:</strong> ${data.EBITDA_2024}</p>
+        <p><strong>Alavancagem:</strong> ${data.Alavancagem}</p>
+        <p><strong>Rating:</strong> 
+          <span style="color:${cor}; font-weight:bold;">
+            ${data.Rating}
+          </span>
+        </p>
+      </div>
+    `;
+  } catch (err) {
+    div.innerHTML = "❌ Erro ao conectar com a API";
+  }
 }
+
+// 🔥 Permite buscar pressionando Enter
+document.getElementById("empresa").addEventListener("keypress", function(e) {
+  if (e.key === "Enter") {
+    buscar();
+  }
+});
 </script>
 
 </body>
