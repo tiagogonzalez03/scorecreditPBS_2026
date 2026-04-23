@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Teste API</title>
+</head>
+<body>
+
+<h1>Teste API Vercel</h1>
+
+<input id="empresa" placeholder="Digite empresa">
+<button onclick="buscar()">Buscar</button>
+
+<div id="resultado"></div>
+
+<script>
+async function buscar() {
+  const empresa = document.getElementById("empresa").value;
+
+  const res = await fetch(`/api?empresa=${empresa}`);
+  const data = await res.json();
+
+  document.getElementById("resultado").innerHTML =
+    `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+}
+</script>
+
+</body>
+</html>
