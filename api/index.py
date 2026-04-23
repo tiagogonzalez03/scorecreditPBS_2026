@@ -1,11 +1,18 @@
 from flask import Flask, request, jsonify
 import csv
 import os
+import numpy as np
+
+from sklearn.linear_model import LogisticRegression
 
 app = Flask(__name__)
 
 dados_cache = None
+modelo = None
 
+# =========================
+# CARREGAR E PREPARAR DADOS
+# =========================
 def carregar_dados():
     global dados_cache
 
@@ -28,26 +35,30 @@ def carregar_dados():
         for row in reader:
             try:
                 empresa = row[0].split(' (')[0]
-                divida = float(row[3].replace(',', '') or 0)
-                ebitda = float(row[9].replace(',', '') or 0)
 
-                alavancagem = round(divida / ebitda, 2) if ebitda != 0 else None
+                divida_2024 = float(row[3].replace(',', '') or 0)
+                divida_2023 = float(row[2].replace(',', '') or 0)
 
-                if ebitda <= 0 or alavancagem is None:
-                    rating = '🔴 CRÍTICO'
-                elif alavancagem > 4.5:
-                    rating = '🔴 ALTO RISCO'
-                elif alavancagem < 2.0:
-                    rating = '🟢 BAIXO RISCO'
-                else:
-                    rating = '🟡 MODERADO'
+                ebitda_2024 = float(row[9].replace(',', '') or 0)
+                ebitda_2023 = float(row[8].replace(',', '') or 0)
+
+                alavancagem = divida_2024 / ebitda_2024 if ebitda_2024 != 0 else None
+
+                # crescimento
+                crescimento_divida = (divida_2024 - divida_2023) / divida_2023 if divida_2023 != 0 else 0
+                crescimento_ebitda = (ebitda_2024 - ebitda_2023) / ebitda_2023 if ebitda_2023 != 0 else 0
+
+                # proxy de default
+                default = 1 if (alavancagem and alavancagem > 5 and crescimento_divida > 0) else 0
 
                 dados.append({
                     "Empresa": empresa,
-                    "Divida_2024": divida,
-                    "EBITDA_2024": ebitda,
-                    "Alavancagem": alavancagem,
-                    "Rating": rating
+                    "Divida_2024": divida_2024,
+                    "EBITDA_2024": ebitda_2024,
+                    "Alavancagem": round(alavancagem, 2) if alavancagem else None,
+                    "Crescimento_Divida": crescimento_divida,
+                    "Crescimento_EBITDA": crescimento_ebitda,
+                    "Default": default
                 })
 
             except:
@@ -57,6 +68,38 @@ def carregar_dados():
     return dados_cache
 
 
+# =========================
+# TREINAR MODELO
+# =========================
+def treinar_modelo():
+    global modelo
+
+    if modelo is not None:
+        return modelo
+
+    dados = carregar_dados()
+
+    X = []
+    y = []
+
+    for d in dados:
+        if d["Alavancagem"] is not None:
+            X.append([
+                d["Alavancagem"],
+                d["Crescimento_Divida"],
+                d["Crescimento_EBITDA"]
+            ])
+            y.append(d["Default"])
+
+    modelo = LogisticRegression()
+    modelo.fit(X, y)
+
+    return modelo
+
+
+# =========================
+# API
+# =========================
 @app.route('/api')
 def api():
     tipo = request.args.get('tipo', '')
@@ -64,17 +107,38 @@ def api():
 
     dados = carregar_dados()
 
+    # ranking
     if tipo == "top-risk":
         filtrado = [d for d in dados if d["Alavancagem"] is not None]
         ordenado = sorted(filtrado, key=lambda x: x["Alavancagem"], reverse=True)
         return jsonify(ordenado[:10])
 
+    # busca + previsão
     if empresa_query:
         resultados = [
             item for item in dados
             if empresa_query in item["Empresa"].lower()
         ]
-        return jsonify(resultados[:10])
+
+        if not resultados:
+            return jsonify([])
+
+        item = resultados[0]
+
+        modelo = treinar_modelo()
+
+        if item["Alavancagem"] is not None:
+            prob = modelo.predict_proba([[
+                item["Alavancagem"],
+                item["Crescimento_Divida"],
+                item["Crescimento_EBITDA"]
+            ]])[0][1]
+        else:
+            prob = 1.0
+
+        item["Prob_Default"] = round(float(prob), 3)
+
+        return jsonify([item])
 
     return jsonify({"status": "ok"})
 
