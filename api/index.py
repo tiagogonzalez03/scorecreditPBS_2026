@@ -18,7 +18,6 @@ def carregar_dados():
     with open(file_path, newline='', encoding='latin-1') as csvfile:
         reader = csv.reader(csvfile)
 
-        # pula linhas iniciais do arquivo
         for _ in range(5):
             next(reader, None)
 
@@ -63,12 +62,12 @@ def api():
     dados = carregar_dados()
 
     if empresa_query:
-    resultados = [
-        item for item in dados
-        if empresa_query in item["Empresa"].lower()
-    ]
+        resultados = [
+            item for item in dados
+            if empresa_query in item["Empresa"].lower()
+        ]
 
-    return jsonify(resultados[:10])  # limita a 10 sugestões
+        return jsonify(resultados[:10])  # sugestões
 
     return jsonify({"status": "ok"})
 
