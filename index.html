@@ -86,7 +86,7 @@ button {
 <h2>📊 Credit Risk</h2>
 
 <div class="search-box">
-  <input id="empresa" placeholder="Digite empresa..." oninput="autocomplete()">
+  <input id="empresa" placeholder="Digite empresa...">
   <div id="suggestions" class="suggestions"></div>
 </div>
 
@@ -189,6 +189,9 @@ async function buscar() {
     div.innerHTML = "❌ Erro ao conectar com a API";
   }
 }
+
+// 🔥 LIGA O AUTOCOMPLETE CORRETAMENTE
+document.getElementById("empresa").addEventListener("input", autocomplete);
 
 // ⌨️ ENTER PARA BUSCAR
 document.getElementById("empresa").addEventListener("keypress", function(e) {
