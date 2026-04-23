@@ -101,17 +101,13 @@ button {
 
 let timeout = null;
 
-// =========================
-// FORMATAR NÚMEROS
-// =========================
+// formatar números
 function formatarNumero(valor) {
   if (valor === null || valor === undefined) return "-";
   return valor.toLocaleString('pt-BR');
 }
 
-// =========================
-// AUTOCOMPLETE
-// =========================
+// autocomplete
 async function autocomplete() {
   const query = document.getElementById("empresa").value;
   const box = document.getElementById("suggestions");
@@ -146,9 +142,7 @@ async function autocomplete() {
   }, 300);
 }
 
-// =========================
-// BUSCA
-// =========================
+// busca
 async function buscar() {
   const empresa = document.getElementById("empresa").value;
   const div = document.getElementById("resultado");
@@ -189,15 +183,13 @@ async function buscar() {
   `;
 }
 
-// =========================
-// RANKING
-// =========================
+// ranking
 async function topRisk() {
   const div = document.getElementById("resultado");
 
   div.innerHTML = "🔄 Carregando ranking...";
 
-  const res = await fetch(`/api/top-risk`);
+  const res = await fetch(`/api?tipo=top-risk`);
   const data = await res.json();
 
   let html = `<div class="card"><h3>🔥 Top 10 Mais Arriscadas</h3>`;
@@ -205,8 +197,7 @@ async function topRisk() {
   data.forEach((item, i) => {
     html += `
       <p>
-        ${i + 1}. ${item.Empresa} 
-        - ${item.Alavancagem}
+        ${i + 1}. ${item.Empresa} - ${item.Alavancagem}
       </p>
     `;
   });
@@ -220,9 +211,7 @@ async function topRisk() {
 document.getElementById("empresa").addEventListener("input", autocomplete);
 
 document.getElementById("empresa").addEventListener("keypress", function(e) {
-  if (e.key === "Enter") {
-    buscar();
-  }
+  if (e.key === "Enter") buscar();
 });
 
 </script>
