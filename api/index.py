@@ -63,11 +63,12 @@ def api():
     dados = carregar_dados()
 
     if empresa_query:
-        for item in dados:
-            if empresa_query in item["Empresa"].lower():
-                return jsonify(item)
+    resultados = [
+        item for item in dados
+        if empresa_query in item["Empresa"].lower()
+    ]
 
-        return jsonify({"erro": "Empresa não encontrada"}), 404
+    return jsonify(resultados[:10])  # limita a 10 sugestões
 
     return jsonify({"status": "ok"})
 
