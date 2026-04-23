@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Credit Risk</title>
+<title>Credit Risk AI</title>
 
 <style>
 body {
@@ -75,7 +75,7 @@ button {
 
 <div class="container">
 
-<h2>📊 Credit Risk</h2>
+<h2>📊 Credit Risk AI</h2>
 
 <div class="search-box">
   <input id="empresa" placeholder="Digite empresa...">
@@ -102,11 +102,10 @@ function formatarNumero(valor) {
 }
 
 // =========================
-// SCORE + RECOMENDAÇÃO
+// SCORE
 // =========================
 function calcularScore(valor) {
   if (valor === null) return "D";
-
   if (valor < 1.5) return "AAA";
   if (valor < 2.5) return "AA";
   if (valor < 3.5) return "A";
@@ -119,38 +118,29 @@ function calcularScore(valor) {
 function recomendacao(score) {
   if (["AAA","AA","A"].includes(score))
     return "🟢 Comprar / Longo prazo";
-
   if (["BBB","BB"].includes(score))
     return "🟡 Atenção / Avaliar melhor";
-
   return "🔴 Evitar / Alto risco";
+}
+
+// =========================
+// PROBABILIDADE
+// =========================
+function interpretarProb(p) {
+  if (p < 0.05) return "🟢 Muito baixo risco";
+  if (p < 0.15) return "🟡 Risco moderado";
+  if (p < 0.30) return "🟠 Risco elevado";
+  return "🔴 Alto risco";
 }
 
 // =========================
 // EXPLICAÇÕES
 // =========================
 function explicacaoAlavancagem(valor) {
-  if (valor === null) return "Empresa com prejuízo ou EBITDA negativo.";
-
-  if (valor < 2) return "Baixo nível de dívida. Estrutura saudável.";
+  if (valor === null) return "Empresa com prejuízo.";
+  if (valor < 2) return "Baixo nível de dívida.";
   if (valor < 4.5) return "Dívida moderada.";
-  return "Alto nível de endividamento.";
-}
-
-function explicacaoRating(rating) {
-  if (rating.includes("🟢"))
-    return "Empresa sólida.";
-  if (rating.includes("🟡"))
-    return "Empresa estável com atenção.";
-  return "Empresa de alto risco.";
-}
-
-function interpretacaoInvestidor(valor) {
-  if (valor === null) return "Evitar análise baseada em dívida.";
-
-  if (valor < 2) return "Perfil conservador.";
-  if (valor < 4.5) return "Perfil moderado.";
-  return "Perfil agressivo.";
+  return "Alta alavancagem.";
 }
 
 // =========================
@@ -195,6 +185,8 @@ async function buscar() {
   const empresa = document.getElementById("empresa").value;
   const div = document.getElementById("resultado");
 
+  div.innerHTML = "🔄 Buscando...";
+
   const res = await fetch(`/api?empresa=${empresa}`);
   const data = await res.json();
 
@@ -208,16 +200,18 @@ async function buscar() {
   let corBg = "#1e293b";
   let corRating = "#22c55e";
 
-  if (item.Rating.includes("🔴")) {
+  if (item.Rating && item.Rating.includes("🔴")) {
     corBg = "#7f1d1d";
     corRating = "#ef4444";
-  } else if (item.Rating.includes("🟡")) {
+  } else if (item.Rating && item.Rating.includes("🟡")) {
     corBg = "#78350f";
     corRating = "#eab308";
   }
 
   const score = calcularScore(item.Alavancagem);
   const rec = recomendacao(score);
+
+  const prob = item.Prob_Default || 0;
 
   div.innerHTML = `
     <div class="card" style="background:${corBg}">
@@ -230,19 +224,16 @@ async function buscar() {
       <p><strong>📊 Análise:</strong><br>
       ${explicacaoAlavancagem(item.Alavancagem)}</p>
 
-      <p><strong>💡 Interpretação:</strong><br>
-      ${interpretacaoInvestidor(item.Alavancagem)}</p>
-
-      <p style="font-size:18px;"><strong>⭐ Score: ${score}</strong></p>
-
+      <p><strong>⭐ Score:</strong> ${score}</p>
       <p>${rec}</p>
 
-      <p style="color:${corRating}; font-weight:bold;">
-        ${item.Rating}
-      </p>
+      <p><strong>⚠️ Probabilidade de Inadimplência:</strong><br>
+      ${Math.round(prob * 100)}%<br>
+      ${interpretarProb(prob)}</p>
 
-      <p><strong>🧠 Significado:</strong><br>
-      ${explicacaoRating(item.Rating)}</p>
+      <p style="color:${corRating}; font-weight:bold;">
+        ${item.Rating || ""}
+      </p>
     </div>
   `;
 }
