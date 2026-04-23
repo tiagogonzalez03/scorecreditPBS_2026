@@ -17,7 +17,7 @@ body {
 }
 
 .container {
-  width: 400px;
+  width: 420px;
 }
 
 .search-box {
@@ -91,6 +91,7 @@ button {
 </div>
 
 <button onclick="buscar()">Buscar</button>
+<button onclick="topRisk()">🔥 Top Risco</button>
 
 <div id="resultado"></div>
 
@@ -100,7 +101,17 @@ button {
 
 let timeout = null;
 
-// 🔎 AUTOCOMPLETE
+// =========================
+// FORMATAR NÚMEROS
+// =========================
+function formatarNumero(valor) {
+  if (valor === null || valor === undefined) return "-";
+  return valor.toLocaleString('pt-BR');
+}
+
+// =========================
+// AUTOCOMPLETE
+// =========================
 async function autocomplete() {
   const query = document.getElementById("empresa").value;
   const box = document.getElementById("suggestions");
@@ -113,87 +124,101 @@ async function autocomplete() {
   }
 
   timeout = setTimeout(async () => {
-    try {
-      const res = await fetch(`/api?empresa=${query}`);
-      const data = await res.json();
+    const res = await fetch(`/api?empresa=${query}`);
+    const data = await res.json();
 
-      box.innerHTML = "";
+    box.innerHTML = "";
 
-      if (!Array.isArray(data)) return;
+    if (!Array.isArray(data)) return;
 
-      data.forEach(item => {
-        const div = document.createElement("div");
-        div.className = "suggestion-item";
-        div.innerText = item.Empresa;
+    data.forEach(item => {
+      const div = document.createElement("div");
+      div.className = "suggestion-item";
+      div.innerText = item.Empresa;
 
-        div.onclick = () => {
-          document.getElementById("empresa").value = item.Empresa;
-          box.innerHTML = "";
-        };
+      div.onclick = () => {
+        document.getElementById("empresa").value = item.Empresa;
+        box.innerHTML = "";
+      };
 
-        box.appendChild(div);
-      });
-
-    } catch (err) {
-      console.log("Erro autocomplete:", err);
-    }
+      box.appendChild(div);
+    });
   }, 300);
 }
 
-// 🔍 BUSCA PRINCIPAL
+// =========================
+// BUSCA
+// =========================
 async function buscar() {
   const empresa = document.getElementById("empresa").value;
   const div = document.getElementById("resultado");
 
-  if (!empresa) {
-    div.innerHTML = "⚠️ Digite uma empresa";
+  div.innerHTML = "🔄 Buscando...";
+
+  const res = await fetch(`/api?empresa=${empresa}`);
+  const data = await res.json();
+
+  const item = data[0];
+
+  if (!item) {
+    div.innerHTML = "Empresa não encontrada";
     return;
   }
 
-  div.innerHTML = "🔄 Buscando...";
+  let corBg = "#1e293b";
+  let corRating = "#22c55e";
 
-  try {
-    const res = await fetch(`/api?empresa=${empresa}`);
-    const data = await res.json();
-
-    const item = data[0];
-
-    if (!item) {
-      div.innerHTML = "Empresa não encontrada";
-      return;
-    }
-
-    let corBg = "#1e293b";
-    let corRating = "#22c55e";
-
-    if (item.Rating.includes("🔴")) {
-      corBg = "#7f1d1d";
-      corRating = "#ef4444";
-    } else if (item.Rating.includes("🟡")) {
-      corBg = "#78350f";
-      corRating = "#eab308";
-    }
-
-    div.innerHTML = `
-      <div class="card" style="background:${corBg}">
-        <h3>${item.Empresa}</h3>
-        <p>💰 Dívida: ${item.Divida_2024}</p>
-        <p>📈 EBITDA: ${item.EBITDA_2024}</p>
-        <p>⚖️ Alavancagem: ${item.Alavancagem}</p>
-        <p style="color:${corRating}; font-weight:bold;">
-          ${item.Rating}
-        </p>
-      </div>
-    `;
-  } catch (err) {
-    div.innerHTML = "❌ Erro ao conectar com a API";
+  if (item.Rating.includes("🔴")) {
+    corBg = "#7f1d1d";
+    corRating = "#ef4444";
+  } else if (item.Rating.includes("🟡")) {
+    corBg = "#78350f";
+    corRating = "#eab308";
   }
+
+  div.innerHTML = `
+    <div class="card" style="background:${corBg}">
+      <h3>${item.Empresa}</h3>
+      <p>💰 Dívida: ${formatarNumero(item.Divida_2024)}</p>
+      <p>📈 EBITDA: ${formatarNumero(item.EBITDA_2024)}</p>
+      <p>⚖️ Alavancagem: ${item.Alavancagem}</p>
+      <p style="color:${corRating}; font-weight:bold;">
+        ${item.Rating}
+      </p>
+    </div>
+  `;
 }
 
-// 🔥 LIGA O AUTOCOMPLETE CORRETAMENTE
+// =========================
+// RANKING
+// =========================
+async function topRisk() {
+  const div = document.getElementById("resultado");
+
+  div.innerHTML = "🔄 Carregando ranking...";
+
+  const res = await fetch(`/api/top-risk`);
+  const data = await res.json();
+
+  let html = `<div class="card"><h3>🔥 Top 10 Mais Arriscadas</h3>`;
+
+  data.forEach((item, i) => {
+    html += `
+      <p>
+        ${i + 1}. ${item.Empresa} 
+        - ${item.Alavancagem}
+      </p>
+    `;
+  });
+
+  html += `</div>`;
+
+  div.innerHTML = html;
+}
+
+// eventos
 document.getElementById("empresa").addEventListener("input", autocomplete);
 
-// ⌨️ ENTER PARA BUSCAR
 document.getElementById("empresa").addEventListener("keypress", function(e) {
   if (e.key === "Enter") {
     buscar();
