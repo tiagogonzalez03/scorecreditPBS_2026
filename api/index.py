@@ -1,10 +1,20 @@
 from flask import Flask, request, jsonify
 import csv
 import os
+import unicodedata
 
 app = Flask(__name__)
 
 dados_cache = None
+
+# =========================
+# NORMALIZAR TEXTO
+# =========================
+def limpar_texto(texto):
+    return unicodedata.normalize('NFKD', texto)\
+        .encode('ascii', 'ignore')\
+        .decode('utf-8')\
+        .lower().strip()
 
 # =========================
 # CARREGAR DADOS
@@ -30,7 +40,7 @@ def carregar_dados():
 
         for row in reader:
             try:
-                empresa = row[0].split(' (')[0]
+                empresa = row[0]
 
                 divida_2024 = float(row[3].replace(',', '') or 0)
                 divida_2023 = float(row[2].replace(',', '') or 0)
@@ -67,7 +77,7 @@ def carregar_dados():
 
 
 # =========================
-# PROBABILIDADE (IA HEURÍSTICA)
+# PROBABILIDADE (HEURÍSTICA)
 # =========================
 def calcular_probabilidade(d):
     if d["Alavancagem"] is None:
@@ -75,7 +85,6 @@ def calcular_probabilidade(d):
 
     score = 0
 
-    # alavancagem pesa mais
     if d["Alavancagem"] < 2:
         score += 0.05
     elif d["Alavancagem"] < 4.5:
@@ -83,11 +92,9 @@ def calcular_probabilidade(d):
     else:
         score += 0.35
 
-    # crescimento da dívida
     if d["Crescimento_Divida"] > 0.3:
         score += 0.2
 
-    # queda de EBITDA
     if d["Crescimento_EBITDA"] < 0:
         score += 0.2
 
@@ -100,35 +107,37 @@ def calcular_probabilidade(d):
 @app.route('/api')
 def api():
     tipo = request.args.get('tipo', '')
-    empresa_query = request.args.get('empresa', '').lower()
+    empresa_query = request.args.get('empresa', '')
 
     dados = carregar_dados()
 
-    # ranking
+    # 🔥 RANKING
     if tipo == "top-risk":
         filtrado = [d for d in dados if d["Alavancagem"] is not None]
         ordenado = sorted(filtrado, key=lambda x: x["Alavancagem"], reverse=True)
         return jsonify(ordenado[:10])
 
-    # busca
+    # 🔎 BUSCA
     if empresa_query:
-        resultados = [
-            item for item in dados
-            if empresa_query in item["Empresa"].lower()
-        ]
+        query = limpar_texto(empresa_query)
 
-        if not resultados:
-            return jsonify([])
+        resultados = []
 
-        item = resultados[0]
+        for item in dados:
+            nome = limpar_texto(item["Empresa"])
 
-        prob = calcular_probabilidade(item)
-        item["Prob_Default"] = round(prob, 3)
+            if query in nome:
+                prob = calcular_probabilidade(item)
+                item["Prob_Default"] = round(prob, 3)
+                resultados.append(item)
 
-        return jsonify([item])
+        return jsonify(resultados[:10])
 
     return jsonify({"status": "ok"})
 
 
-def handler(request):
-    return app(request)
+# =========================
+# VERCEL HANDLER
+# =========================
+def handler(environ, start_response):
+    return app(environ, start_response)
