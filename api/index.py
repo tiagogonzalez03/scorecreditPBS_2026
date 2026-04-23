@@ -4,10 +4,17 @@ import os
 
 app = Flask(__name__)
 
+dados_cache = None
+
 # =========================
-# FUNÇÃO PARA LER O CSV
+# CARREGAR CSV (com cache)
 # =========================
 def carregar_dados():
+    global dados_cache
+
+    if dados_cache is not None:
+        return dados_cache
+
     base_path = os.path.dirname(__file__)
     file_path = os.path.abspath(
         os.path.join(base_path, '..', 'data', 'SPGlobal_Export_4-14-2026_FinalVersion.csv')
@@ -49,16 +56,16 @@ def carregar_dados():
             except:
                 continue
 
-    return dados
+    dados_cache = dados
+    return dados_cache
 
 
 # =========================
-# ROTA DA API
+# BUSCA / AUTOCOMPLETE
 # =========================
 @app.route('/api')
 def api():
     empresa_query = request.args.get('empresa', '').lower()
-
     dados = carregar_dados()
 
     if empresa_query:
@@ -66,11 +73,23 @@ def api():
             item for item in dados
             if empresa_query in item["Empresa"].lower()
         ]
-
-        return jsonify(resultados[:10])  # sugestões
+        return jsonify(resultados[:10])
 
     return jsonify({"status": "ok"})
 
 
-# necessário para o Vercel
+# =========================
+# RANKING DE RISCO
+# =========================
+@app.route('/api/top-risk')
+def top_risk():
+    dados = carregar_dados()
+
+    filtrado = [d for d in dados if d["Alavancagem"] is not None]
+    ordenado = sorted(filtrado, key=lambda x: x["Alavancagem"], reverse=True)
+
+    return jsonify(ordenado[:10])
+
+
+# necessário para Vercel
 index = app
