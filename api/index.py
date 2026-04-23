@@ -35,12 +35,19 @@ def carregar_dados():
     with open(file_path, newline='', encoding='latin-1') as csvfile:
         reader = csv.reader(csvfile)
 
-        for _ in range(5):
-            next(reader, None)
+        # 🔥 ENCONTRA HEADER AUTOMATICAMENTE
+        for row in reader:
+            if row and "Company" in row[0]:
+                break
 
+        # 🔥 LEITURA DOS DADOS
         for row in reader:
             try:
-                empresa = row[0]
+                # proteção
+                if not row or len(row) < 10:
+                    continue
+
+                empresa = row[0].strip()
 
                 divida_2024 = float(row[3].replace(',', '') or 0)
                 divida_2023 = float(row[2].replace(',', '') or 0)
@@ -85,6 +92,7 @@ def calcular_probabilidade(d):
 
     score = 0
 
+    # peso principal: alavancagem
     if d["Alavancagem"] < 2:
         score += 0.05
     elif d["Alavancagem"] < 4.5:
@@ -92,9 +100,11 @@ def calcular_probabilidade(d):
     else:
         score += 0.35
 
+    # dívida crescendo rápido
     if d["Crescimento_Divida"] > 0.3:
         score += 0.2
 
+    # EBITDA caindo
     if d["Crescimento_EBITDA"] < 0:
         score += 0.2
 
