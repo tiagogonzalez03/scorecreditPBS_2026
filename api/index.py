@@ -64,13 +64,11 @@ def api():
 
     dados = carregar_dados()
 
-    # ranking
     if tipo == "top-risk":
         filtrado = [d for d in dados if d["Alavancagem"] is not None]
         ordenado = sorted(filtrado, key=lambda x: x["Alavancagem"], reverse=True)
         return jsonify(ordenado[:10])
 
-    # busca
     if empresa_query:
         resultados = [
             item for item in dados
