@@ -25,22 +25,27 @@ def carregar_dados():
     if dados_cache is not None:
         return dados_cache
 
-   file_path = os.path.join(os.getcwd(), 'data', 'SPGlobal_Export_4-14-2026_FinalVersion.csv')
-print("CSV PATH:", file_path)
-print("EXISTS:", os.path.exists(file_path))
+    # caminho simples (funciona no Vercel)
+    file_path = 'data/SPGlobal_Export_4-14-2026_FinalVersion.csv'
+
+    print("CSV PATH:", file_path)
+    print("EXISTS:", os.path.exists(file_path))
 
     dados = []
+
+    if not os.path.exists(file_path):
+        print("❌ CSV não encontrado")
+        return []
 
     with open(file_path, newline='', encoding='latin-1') as csvfile:
         reader = csv.reader(csvfile)
 
         for row in reader:
             try:
-                # ignora linhas inválidas
                 if not row or len(row) < 10:
                     continue
 
-                # ignora header (quando não é número)
+                # ignora header
                 if not row[3].replace(',', '').replace('.', '').isdigit():
                     continue
 
@@ -73,15 +78,17 @@ print("EXISTS:", os.path.exists(file_path))
                     "Crescimento_EBITDA": crescimento_ebitda
                 })
 
-            except:
+            except Exception as e:
                 continue
+
+    print("TOTAL DE EMPRESAS:", len(dados))
 
     dados_cache = dados
     return dados_cache
 
 
 # =========================
-# PROBABILIDADE (HEURÍSTICA)
+# PROBABILIDADE
 # =========================
 def calcular_probabilidade(d):
     if d["Alavancagem"] is None:
@@ -89,7 +96,6 @@ def calcular_probabilidade(d):
 
     score = 0
 
-    # peso principal: alavancagem
     if d["Alavancagem"] < 2:
         score += 0.05
     elif d["Alavancagem"] < 4.5:
@@ -97,11 +103,9 @@ def calcular_probabilidade(d):
     else:
         score += 0.35
 
-    # dívida crescendo rápido
     if d["Crescimento_Divida"] > 0.3:
         score += 0.2
 
-    # EBITDA caindo
     if d["Crescimento_EBITDA"] < 0:
         score += 0.2
 
@@ -118,13 +122,13 @@ def api():
 
     dados = carregar_dados()
 
-    # 🔥 RANKING
+    # ranking
     if tipo == "top-risk":
         filtrado = [d for d in dados if d["Alavancagem"] is not None]
         ordenado = sorted(filtrado, key=lambda x: x["Alavancagem"], reverse=True)
         return jsonify(ordenado[:10])
 
-    # 🔎 BUSCA
+    # busca
     if empresa_query:
         query = limpar_texto(empresa_query)
 
