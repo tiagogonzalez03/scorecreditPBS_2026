@@ -25,10 +25,9 @@ def carregar_dados():
     if dados_cache is not None:
         return dados_cache
 
-    base_path = os.path.dirname(__file__)
-    file_path = os.path.abspath(
-        os.path.join(base_path, '..', 'data', 'SPGlobal_Export_4-14-2026_FinalVersion.csv')
-    )
+   file_path = os.path.join(os.getcwd(), 'data', 'SPGlobal_Export_4-14-2026_FinalVersion.csv')
+print("CSV PATH:", file_path)
+print("EXISTS:", os.path.exists(file_path))
 
     dados = []
 
