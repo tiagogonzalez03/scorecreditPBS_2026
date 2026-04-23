@@ -26,6 +26,68 @@ def to_float(value):
         return 0.0
 
 # =========================
+# SCORE DE CRÉDITO
+# =========================
+def gerar_score(prob):
+    if prob < 0.03:
+        return "AAA"
+    elif prob < 0.07:
+        return "AA"
+    elif prob < 0.12:
+        return "A"
+    elif prob < 0.2:
+        return "BBB"
+    elif prob < 0.3:
+        return "BB"
+    else:
+        return "B"
+
+# =========================
+# PROBABILIDADE
+# =========================
+def calcular_probabilidade(d):
+    if d["Alavancagem"] is None:
+        return 0.9
+
+    score = 0
+
+    # Alavancagem (principal fator)
+    if d["Alavancagem"] < 1:
+        score += 0.02
+    elif d["Alavancagem"] < 2:
+        score += 0.05
+    elif d["Alavancagem"] < 4.5:
+        score += 0.15
+    else:
+        score += 0.35
+
+    # Dívida crescendo rápido
+    if d["Crescimento_Divida"] > 0.3:
+        score += 0.15
+
+    # EBITDA caindo
+    if d["Crescimento_EBITDA"] < 0:
+        score += 0.2
+
+    return min(score, 0.8)
+
+# =========================
+# INTERPRETAÇÃO
+# =========================
+def gerar_analise(d):
+    if d["Alavancagem"] is None:
+        return "Dados insuficientes."
+
+    if d["Alavancagem"] < 1:
+        return "Baixo nível de dívida."
+    elif d["Alavancagem"] < 3:
+        return "Estrutura de capital equilibrada."
+    elif d["Alavancagem"] < 5:
+        return "Atenção ao nível de endividamento."
+    else:
+        return "Alto risco financeiro."
+
+# =========================
 # CARREGAR DADOS
 # =========================
 def carregar_dados():
@@ -36,13 +98,9 @@ def carregar_dados():
 
     file_path = 'data/SPGlobal_Export_4-14-2026_FinalVersion.csv'
 
-    print("CSV PATH:", file_path)
-    print("EXISTS:", os.path.exists(file_path))
-
     dados = []
 
     if not os.path.exists(file_path):
-        print("❌ CSV não encontrado")
         return []
 
     with open(file_path, newline='', encoding='latin-1') as csvfile:
@@ -88,36 +146,8 @@ def carregar_dados():
             except:
                 continue
 
-    print("TOTAL DE EMPRESAS:", len(dados))
-
     dados_cache = dados
     return dados_cache
-
-
-# =========================
-# PROBABILIDADE
-# =========================
-def calcular_probabilidade(d):
-    if d["Alavancagem"] is None:
-        return 1.0
-
-    score = 0
-
-    if d["Alavancagem"] < 2:
-        score += 0.05
-    elif d["Alavancagem"] < 4.5:
-        score += 0.15
-    else:
-        score += 0.35
-
-    if d["Crescimento_Divida"] > 0.3:
-        score += 0.2
-
-    if d["Crescimento_EBITDA"] < 0:
-        score += 0.2
-
-    return min(score, 0.95)
-
 
 # =========================
 # API
@@ -149,13 +179,17 @@ def api():
 
             if query in nome:
                 prob = calcular_probabilidade(item)
+                score = gerar_score(prob)
+
                 item["Prob_Default"] = round(prob, 3)
+                item["Score"] = score
+                item["Analise"] = gerar_analise(item)
+
                 resultados.append(item)
 
         return jsonify(resultados[:10])
 
     return jsonify({"status": "ok"})
-
 
 # =========================
 # VERCEL HANDLER
