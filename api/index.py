@@ -17,6 +17,15 @@ def limpar_texto(texto):
         .lower().strip()
 
 # =========================
+# CONVERSÃO SEGURA
+# =========================
+def to_float(value):
+    try:
+        return float(str(value).replace(',', '').strip())
+    except:
+        return 0.0
+
+# =========================
 # CARREGAR DADOS
 # =========================
 def carregar_dados():
@@ -40,22 +49,22 @@ def carregar_dados():
         reader = csv.reader(csvfile)
 
         for row in reader:
-            try:
-                if not row or len(row) < 10:
-                    continue
+            if not row or len(row) < 10:
+                continue
 
+            try:
                 empresa = row[0].strip()
 
-                try:
-                    divida_2024 = float(row[3].replace(',', '') or 0)
-                    divida_2023 = float(row[2].replace(',', '') or 0)
+                divida_2024 = to_float(row[3])
+                divida_2023 = to_float(row[2])
 
-                    ebitda_2024 = float(row[9].replace(',', '') or 0)
-                    ebitda_2023 = float(row[8].replace(',', '') or 0)
-                except:
-                    continue
+                ebitda_2024 = to_float(row[9])
+                ebitda_2023 = to_float(row[8])
 
-                alavancagem = divida_2024 / ebitda_2024 if ebitda_2024 != 0 else None
+                alavancagem = (
+                    divida_2024 / ebitda_2024
+                    if ebitda_2024 != 0 else None
+                )
 
                 crescimento_divida = (
                     (divida_2024 - divida_2023) / divida_2023
@@ -120,10 +129,13 @@ def api():
 
     dados = carregar_dados()
 
-    # 🔥 RANKING
+    # 🔥 TOP RISCO
     if tipo == "top-risk":
-        filtrado = [d for d in dados if d["Alavancagem"] is not None]
-        ordenado = sorted(filtrado, key=lambda x: x["Alavancagem"], reverse=True)
+        ordenado = sorted(
+            dados,
+            key=lambda x: x["Alavancagem"] if x["Alavancagem"] is not None else -1,
+            reverse=True
+        )
         return jsonify(ordenado[:10])
 
     # 🔎 BUSCA
