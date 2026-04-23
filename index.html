@@ -1,164 +1,164 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Risco de Crédito</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', Arial, sans-serif;
-      background: linear-gradient(135deg, #0f172a, #020617);
-      color: white;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
+<meta charset="UTF-8">
+<title>Credit Risk</title>
 
-    .container {
-      width: 400px;
-      text-align: center;
-    }
+<style>
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Arial;
+  background: linear-gradient(135deg, #0f172a, #020617);
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
 
-    h1 {
-      margin-bottom: 20px;
-      font-size: 26px;
-    }
+.container {
+  width: 400px;
+}
 
-    .search-box {
-      display: flex;
-      gap: 10px;
-    }
+.search-box {
+  position: relative;
+}
 
-    input {
-      flex: 1;
-      padding: 12px;
-      border-radius: 10px;
-      border: none;
-      background: #1e293b;
-      color: white;
-    }
+input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  background: #1e293b;
+  color: white;
+}
 
-    input:focus {
-      outline: 2px solid #22c55e;
-    }
+button {
+  margin-top: 10px;
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  background: #22c55e;
+  color: white;
+  cursor: pointer;
+}
 
-    button {
-      padding: 12px 18px;
-      border: none;
-      border-radius: 10px;
-      background: #22c55e;
-      color: white;
-      cursor: pointer;
-      font-weight: bold;
-    }
+.suggestions {
+  position: absolute;
+  width: 100%;
+  background: #1e293b;
+  border-radius: 10px;
+  margin-top: 5px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 10;
+}
 
-    .card {
-      margin-top: 25px;
-      padding: 20px;
-      border-radius: 16px;
-      text-align: left;
-      background: #1e293b;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
-      transition: 0.3s;
-    }
+.suggestion-item {
+  padding: 10px;
+  cursor: pointer;
+}
 
-    .empresa {
-      font-size: 20px;
-      font-weight: bold;
-      margin-bottom: 10px;
-    }
+.suggestion-item:hover {
+  background: #334155;
+}
 
-    .linha {
-      margin: 6px 0;
-      font-size: 14px;
-    }
-
-    .rating {
-      margin-top: 15px;
-      padding: 10px;
-      border-radius: 10px;
-      text-align: center;
-      font-weight: bold;
-    }
-
-    .loading {
-      margin-top: 20px;
-      opacity: 0.7;
-    }
-
-  </style>
+.card {
+  margin-top: 20px;
+  padding: 20px;
+  border-radius: 16px;
+}
+</style>
 </head>
+
 <body>
 
 <div class="container">
-  <h1>📊 Credit Risk</h1>
 
-  <div class="search-box">
-    <input id="empresa" placeholder="Digite empresa (ex: Amazon)">
-    <button onclick="buscar()">Buscar</button>
-  </div>
+<h2>📊 Credit Risk</h2>
 
-  <div id="resultado"></div>
+<div class="search-box">
+  <input id="empresa" placeholder="Digite empresa..." oninput="autocomplete()">
+  <div id="suggestions" class="suggestions"></div>
+</div>
+
+<button onclick="buscar()">Buscar</button>
+
+<div id="resultado"></div>
+
 </div>
 
 <script>
+
+async function autocomplete() {
+  const query = document.getElementById("empresa").value;
+  const box = document.getElementById("suggestions");
+
+  if (query.length < 2) {
+    box.innerHTML = "";
+    return;
+  }
+
+  const res = await fetch(`/api?empresa=${query}`);
+  const data = await res.json();
+
+  box.innerHTML = "";
+
+  data.forEach(item => {
+    const div = document.createElement("div");
+    div.className = "suggestion-item";
+    div.innerText = item.Empresa;
+
+    div.onclick = () => {
+      document.getElementById("empresa").value = item.Empresa;
+      box.innerHTML = "";
+    };
+
+    box.appendChild(div);
+  });
+}
+
 async function buscar() {
   const empresa = document.getElementById("empresa").value;
   const div = document.getElementById("resultado");
 
-  if (!empresa) {
-    div.innerHTML = "<p>⚠️ Digite uma empresa</p>";
+  div.innerHTML = "🔄 Buscando...";
+
+  const res = await fetch(`/api?empresa=${empresa}`);
+  const data = await res.json();
+
+  const item = data[0]; // pega o primeiro
+
+  if (!item) {
+    div.innerHTML = "Empresa não encontrada";
     return;
   }
 
-  div.innerHTML = '<div class="loading">🔄 Buscando...</div>';
+  let corBg = "#1e293b";
+  let corRating = "#22c55e";
 
-  try {
-    const res = await fetch(`/api?empresa=${empresa}`);
-    const data = await res.json();
-
-    if (data.erro) {
-      div.innerHTML = `<p>${data.erro}</p>`;
-      return;
-    }
-
-    // 🎯 cores por risco
-    let corBg = "#1e293b";
-    let corRating = "#22c55e";
-
-    if (data.Rating.includes("🔴")) {
-      corBg = "#7f1d1d";
-      corRating = "#ef4444";
-    } else if (data.Rating.includes("🟡")) {
-      corBg = "#78350f";
-      corRating = "#eab308";
-    }
-
-    div.innerHTML = `
-      <div class="card" style="background:${corBg}">
-        <div class="empresa">${data.Empresa}</div>
-
-        <div class="linha">💰 Dívida: ${data.Divida_2024}</div>
-        <div class="linha">📈 EBITDA: ${data.EBITDA_2024}</div>
-        <div class="linha">⚖️ Alavancagem: ${data.Alavancagem}</div>
-
-        <div class="rating" style="background:${corRating}">
-          ${data.Rating}
-        </div>
-      </div>
-    `;
-  } catch (err) {
-    div.innerHTML = "<p>❌ Erro ao conectar com a API</p>";
+  if (item.Rating.includes("🔴")) {
+    corBg = "#7f1d1d";
+    corRating = "#ef4444";
+  } else if (item.Rating.includes("🟡")) {
+    corBg = "#78350f";
+    corRating = "#eab308";
   }
+
+  div.innerHTML = `
+    <div class="card" style="background:${corBg}">
+      <h3>${item.Empresa}</h3>
+      <p>Dívida: ${item.Divida_2024}</p>
+      <p>EBITDA: ${item.EBITDA_2024}</p>
+      <p>Alavancagem: ${item.Alavancagem}</p>
+      <p style="color:${corRating}; font-weight:bold;">
+        ${item.Rating}
+      </p>
+    </div>
+  `;
 }
 
-// Enter para buscar
-document.getElementById("empresa").addEventListener("keypress", function(e) {
-  if (e.key === "Enter") {
-    buscar();
-  }
-});
 </script>
 
 </body>
